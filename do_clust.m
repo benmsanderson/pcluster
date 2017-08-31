@@ -1,0 +1,277 @@
+%datadir='/glade/p/rda/data/ds728.3/p1d/netcdf'
+datadir='/glade/p/rda/data/ds497.0/full_data_daily_v1'
+
+fils=dir([datadir '/*.nc']);
+pmat=[];
+tmat=[];
+for i=1:numel(fils)
+tmp=ncread([datadir '/' fils(i).name],'p');
+ttmp=ncread([datadir '/' fils(i).name],'time');
+if i==1
+    lon=ncread([datadir '/' fils(i).name],'lon');
+    lats=ncread([datadir '/' fils(i).name],'lat');
+end
+pmat=cat(3,pmat,tmp);
+tmat=cat(1,tmat,ttmp);
+end
+year=cumsum([0;diff(tmat)<0]);
+
+date0=datenum([1988+year,ones(size(year)),ones(size(year))])+tmat;
+%date0=datenum([1988,1,1])+tmat;
+datevv=datevec(date0);
+
+
+%mm3day=movsum(pmat,3,3);
+
+tmp=cumsum(pmat,3);
+
+mm3day=cat(3,tmp(:,:,4:end)-tmp(:,:,1:end-3),NaN([size(tmp,1),size(tmp,2),3]));
+
+
+
+fyears=unique(datevv(:,1));
+maxmat=NaN(size(tmp,1),size(tmp,2),1,12);
+for i=1:numel(fyears)
+for m=1:12
+usedates=find(and(datevv(:,1)==fyears(i),datevv(:,2)==m));
+if numel(usedates)>0
+maxmat(:,:,i,m)=max(mm3day(:,:,usedates),[],3);
+meanmat(:,:,i,m)=mean(pmat(:,:,usedates),3);
+else
+maxmat(:,:,i,m)=NaN;
+meanmat(:,:,i,m)=3;
+end
+end
+end
+
+for i=1:size(pmat,1)
+i/size(maxmat,1)
+for j=1:size(pmat,2)
+if ~isnan(mean(pmat(i,j,:),3));
+for m=1:12
+usedates=find(datevv(:,2)==m);
+rainydays=usedates(find(squeeze(pmat(i,j,usedates))>0.1));
+pfrac=numel(rainydays)/numel(pmat(i,j,usedates));
+raindist=squeeze(pmat(i,j,rainydays));
+pdf_expmixture = @(x,p,mu1,mu2) ...
+                         p*exppdf(x,mu1) + (1-p)*exppdf(x,mu2);
+pStart = .5;
+muStart = quantile(raindist,[.45 .85]);
+if isnan(mean(muStart))
+muStart = [0.05,0.1];
+end
+muBnd = quantile(raindist,[.6 .99]);
+
+start=[pStart muStart ];
+lb = [0 0 muBnd(1)];
+ub = [1 muBnd(1) muBnd(2)];
+if 0
+paramEsts = mle(raindist, 'pdf',pdf_expmixture, 'start',start, ...
+                          'lower',lb, 'upper',ub);
+else
+paramEsts=start;
+end
+
+prmmat(i,j,m,:)=[pfrac,paramEsts];
+end
+else
+prmmat(i,j,m,:)=NaN(1,4);
+end
+end
+end
+
+
+
+
+latarr=repmat(lats',numel(lon),1);
+lonarr=repmat(lon,1,numel(lats));
+
+D1=.025;
+distfun=@(x1,x2) distance(latarr(x1(1),x1(2)),lonarr(x1(1),x1(2)),latarr(x2(1),x2(2)),lonarr(x2(1),x2(2)));
+
+p2fun=@(x1,x2) sum((prmmat(x1(1),x1(2),:,1)-prmmat(x2(1),x2(2),:,1)).^2,3);
+
+for i=1:size(prmmat,1)-1
+for j=1:size(prmmat,2)
+tmp2(i,j)=p2fun([i,j],[i+1,j]);
+end
+end
+D2=prctile(tmp2(:),5);
+
+p3fun=@(x1,x2) sum((prmmat(x1(1),x1(2),:,3)-prmmat(x2(1),x2(2),:,3)).^2,3);
+
+for i=1:size(prmmat,1)-1
+for j=1:size(prmmat,2)
+tmp3(i,j)=p3fun([i,j],[i+1,j]);
+end
+end
+D3=prctile(tmp3(:),20);
+
+p4fun=@(x1,x2) sum((prmmat(x1(1),x1(2),:,4)-prmmat(x2(1),x2(2),:,4)).^2,3);
+
+for i=1:size(prmmat,1)-1
+for j=1:size(prmmat,2)
+tmp4(i,j)=p4fun([i,j],[i+1,j]);
+end
+end
+D4=prctile(tmp4(:),20);
+
+%combidist=@(x1,x2) distfun(x1,x2)/D1+p2fun(x1,x2)/D2+p3fun(x1,x2)/D3+p4fun(x1,x2)/D4;
+combidist=@(x1,x2) p2fun(x1,x2)/D2+p3fun(x1,x2)/D3+p4fun(x1,x2)/D4;
+
+
+[minlon,minlat]=findcoords(20.1,-132.1,latarr,lonarr);
+[maxlon,maxlat]=findcoords(50.1,-60.1,latarr,lonarr);
+
+uselats=[minlat:maxlat];
+uselons=[minlon:maxlon];
+
+[aa bb]=ndgrid(uselons,uselats);
+ isgd=find(~isnan(pmat(uselons,uselats,1)));
+
+clear tmp
+
+for ii=1:numel(isgd)
+ii./size(isgd,1)
+for jj=1:numel(isgd)
+tmp(ii,jj)=combidist([aa(isgd(ii)),bb(isgd(ii))],[aa(isgd(jj)),bb(isgd(jj))]);
+tmpd(ii,jj)=distfun([aa(isgd(ii)),bb(isgd(ii))],[aa(isgd(jj)),bb(isgd(jj))]);
+end
+end
+
+D1=0.0025;
+tmpmap=NaN(size(aa(:),1),size(aa(:),1));
+for i=1:numel(isgd)
+tmpmap(isgd(i),isgd)=tmp(i,:)+tmpd(i,:)/D1;
+end
+
+nc=60;
+
+Z = linkage((tmp+tmpd/D1).^0.5,'complete');
+c = cluster(Z,'maxclust',nc);
+
+
+
+
+minsize=40;
+c_org=c;
+
+
+minclust=0;
+while minclust<minsize
+cred=unique(c_org);
+clear inclust numelc
+for i=1:numel(cred)
+inclust{i}=(find(c_org==cred(i)));
+numelc(i)=numel(inclust{i});
+end
+numelc 
+[minclust ac]=min(numelc);
+
+
+elimc=ac;
+cands=inclust{elimc};
+alc=[1:numel(cred)];
+clear ctarg
+for j=1:numel(cands)
+clear ctmp
+for k=1:numel(cred)
+ctmp(k)=mean(mean(tmp(cands(j),inclust{k})+tmpd(cands(j),inclust{k})/D1,1),2);
+end
+allbut=find(alc~=elimc);
+[duf ttmp]=min(ctmp(alc(allbut)));
+ctarg(j)=allbut(ttmp);
+end
+c_org(cands)=cred(ctarg);
+end
+
+
+
+uni=unique(c_org);
+
+ us_mean=mean(mean(meanmat(uselons,uselats,:,:),3),4);
+us_mngd=us_mean(isgd);
+
+for i=1:numel(uni)
+cmean(i)=mean(us_mngd(find(c_org==uni(i))));
+end
+[duf drysort]=sort(cmean)
+
+for i=1:numel(uni)
+c_new(find(c_org==uni(drysort(i))))=i;
+end
+
+
+
+ cmap=NaN(size(pmat(uselons,uselats,1)));
+cmap(isgd)=c_new;
+
+
+
+figure(3)
+clf
+ax = usamap('conus');
+states = shaperead('usastatelo', 'UseGeoCoords', true,...
+  'Selector',...
+  {@(name) ~any(strcmp(name,{'Alaska','Hawaii'})), 'Name'});
+faceColors = makesymbolspec('Polygon',...
+    {'INDEX', [1 numel(states)], 'FaceColor','none'}); %NOTE - colors are random
+ geoshow(lats(bb),lon(aa),cmap, 'DisplayType', 'texturemap')
+
+hold on
+geoshow(ax, states, 'DisplayType', 'polygon', ...
+   'SymbolSpec', faceColors)
+ load coast  
+geoshow(flipud(lat),flipud(long),'DisplayType','polygon','FaceColor','white')
+colormap('jet')
+
+
+
+set(gcf, 'PaperPosition', [0 0 6 5]);
+set(gcf, 'PaperSize', [6 5]);
+
+print(gcf,'-dpng','-r600','-painters',['pmaps.png'])
+
+
+
+[blon,blat]=findcoords(40.01,-105.3,lats(bb),lon(aa));
+gdmap=NaN(size(pmat(uselons,uselats,1)));
+gdmap(isgd)=1:numel(isgd);
+bgood=gdmap(blon,blat);
+
+
+figure(4)
+clf
+ax = usamap('conus');
+states = shaperead('usastatelo', 'UseGeoCoords', true,...
+  'Selector',...
+  {@(name) ~any(strcmp(name,{'Alaska','Hawaii'})), 'Name'});
+faceColors = makesymbolspec('Polygon',...
+    {'INDEX', [1 numel(states)], 'FaceColor','none'}); %NOTE - colors are random
+ geoshow(lats(bb),lon(aa),reshape(log(1./tmpmap(isgd(bgood),:)),size(aa)), 'DisplayType', 'texturemap')
+
+hold on
+geoshow(ax, states, 'DisplayType', 'polygon', ...
+   'SymbolSpec', faceColors)
+ load coast
+geoshow(flipud(lat),flipud(long),'DisplayType','polygon','FaceColor','white')
+colormap('jet')
+
+
+
+set(gcf, 'PaperPosition', [0 0 6 5]);
+set(gcf, 'PaperSize', [6 5]);
+
+print(gcf,'-dpng','-r600','-painters',['ptest.png'])
+
+
+
+figure(2)
+clf
+
+
+
+i=1
+imagesc(lon(uselons),lats(uselats),reshape(log(1./tmpmap(isgd(i),:)),size(aa))');hold on;plot(lon(aa(isgd(i))),lats(bb(isgd(i))),'ro','markersize',20);;
+
+set(gca,'ydir','normal');
