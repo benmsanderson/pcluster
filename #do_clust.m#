@@ -284,7 +284,7 @@ us_mngd=us_mean(isgd);
 for i=1:numel(uni)
 cmean(i)=mean(us_mngd(find(c_org==uni(i))));
 end
-[duf drysort]=sort(cmean)
+[duf drysort]=sort(cmean);
 %sort clusters from dryest to wettest region
 for i=1:numel(uni)
 c_new(find(c_org==uni(drysort(i))))=i;
@@ -298,7 +298,7 @@ cmap(isgd)=c_new;
 
 
 %plot clusters
-plotmap(lats,lon,aa,bb,cmap,'pmaps.png')
+plotmap(lats,lon,aa,bb,cmap,'pmaps.png',1)
 
 %plot demonstration distance map
 [blon,blat]=findcoords(40.01,-105.3,lats(bb),lon(aa));
@@ -306,7 +306,21 @@ gdmap=NaN(size(pmat(uselons,uselats,1)));
 gdmap(isgd)=1:numel(isgd);
 bgood=gdmap(blon,blat);
 dmap=reshape(log(1./tmpmap(isgd(bgood),:)),size(aa));
-plotmap(lats,lon,aa,bb,dmap,'ptest.png')
+plotmap(lats,lon,aa,bb,dmap,'ptest.png',2)
 
 
 %%Create time evolving cluster distributions
+cred=unique(c_new);
+clear inclust numelc
+for i=1:numel(cred)
+    %make list of cells in each cluster
+inclust{i}=(find(c_new==cred(i)));
+%count members in each cluster
+numelc(i)=numel(inclust{i});
+end
+
+
+max_in=permute(maxmat(uselons,uselats,:,:),[3,4,1,2]); 
+
+for i=1:numel(cred)
+indist=max_in(:,:,isgd(inclust{i}));
