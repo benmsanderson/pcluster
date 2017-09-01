@@ -51,17 +51,15 @@ fyears=unique(datevv(:,1));
 
 %%%Create matrix of monthly maximum and mean values, by year, for extreme value analysis
 maxmat=NaN(size(p3daysum,1),size(p3daysum,2),1,12);
-disp('Getting extreme values')
+disp('Getting mean values')
 upd = textprogressbar(numel(fyears),'updatestep',1);
 for i=1:numel(fyears)
 upd(i);
 for m=1:12
 usedates=find(and(datevv(:,1)==fyears(i),datevv(:,2)==m));
 if numel(usedates)>0
-maxmat(:,:,i,m)=max(mm3day(:,:,usedates),[],3);
 meanmat(:,:,i,m)=mean(pmat(:,:,usedates),3);
 else
-maxmat(:,:,i,m)=NaN;
 meanmat(:,:,i,m)=3;
 end
 end
@@ -204,18 +202,17 @@ end
 %define normalization parameter for physical distance - lower values mean clausters will be more spatially confined
 D1=0.0025;
 %initial number of clusters (nc - free parameter)
-nc=60;
+nc=200;
 %define minimum number of gridcells in a cluster
 minsize=40;
 
-[c_new cmap] = make_clusters(nc,D1,minsize,tmp,tmpd,meanmat,uselats,uselons,isgd,aa)
-
-
+[c_new cmap] = make_clusters(nc,D1,minsize,tmp,tmpd,meanmat,uselats,uselons,isgd,aa);
 
 %plot clusters
-plotmap(lats,lon,aa,bb,cmap,'pmaps.png',1)
+plotmap(lats,lon,aa,bb,cmap,'pmaps.png',1,flipud(parula))
 
 %plot demonstration distance map
+%%find Boulder's coordinates in grid
 [blon,blat]=findcoords(40.01,-105.3,lats(bb),lon(aa));
 gdmap=NaN(size(pmat(uselons,uselats,1)));
 gdmap(isgd)=1:numel(isgd);
@@ -235,8 +232,43 @@ numelc(i)=numel(inclust{i});
 end
 
 
-max_in=permute(maxmat(uselons,uselats,:,:),[3,4,1,2]); 
 
-for i=1:numel(cred)
-indist{i}=max_in(:,:,isgd(inclust{i}));
+
+%%%Create matrix of monthly maximum and mean values, by year, for extreme value analysis
+clear maxday
+maxmat=NaN(1,size(p3daysum,1),size(p3daysum,2));
+disp('Getting extreme values')
+upd = textprogressbar(numel(fyears),'updatestep',1);
+for i=1:numel(fyears)
+upd(i);
+usedates=find(datevv(:,1)==fyears(i));
+if numel(usedates)>0
+[maxmat(i,:,:),tmpday]=max(mm3day(:,:,usedates),[],3);
+maxday(i,:,:)=date0(usedates(tmpday));
+else
+maxmat(i,:,:)=NaN;
+maxday(i,:,:)=NaN;
 end
+end
+
+%magnitude of yearly maximum flood event (mm)
+max_in=maxmat(:,uselons,uselats);
+%date of yearly maximum flood event (matlab date format)
+day_in=maxday(:,uselons,uselats);
+
+%sanity check - look for Boulder flood
+disp(datevec(squeeze(day_in(end,blon,blat))));
+%and its amplitude in mm
+disp(squeeze(max_in(end,blon,blat)));
+
+%Create yearly maximum distribution for each cluster (Cell array);
+for i=1:numel(cred)
+indist{i}=max_in(:,isgd(inclust{i}));
+end
+
+clats=lats(uselats);
+clons=lon(uselons);
+%save output
+save('data_out.mat','max_in','day_in','cmap','clats','clons','isgd','inclust','c_new','cred','numelc','lats','lon','aa','bb')
+
+
