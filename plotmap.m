@@ -1,4 +1,4 @@
-function plotmap(lats,lon,aa,bb,cmap,filename,n)
+function plotmap(lats,lon,aa,bb,cmap,filename,n,colmap)
 figure(n)
 clf
 ax = usamap('conus');
@@ -14,7 +14,7 @@ geoshow(ax, states, 'DisplayType', 'polygon', ...
    'SymbolSpec', faceColors);
  load coast
 geoshow(flipud(lat),flipud(long),'DisplayType','polygon','FaceColor','white');
-colormap('jet');
+colormap(colmap);
 
 
 
