@@ -27,5 +27,5 @@ c_lvl(i)=C;
  [parmhat(i,:),parmci] = gevfit(M(:));
  c_prctl(i) = gevcdf(c_lvl(i),parmhat(i,1),parmhat(i,2),parmhat(i,3));
 end
-plotmap(lats,lon,aa,bb,cmap,'pmaps.png',1,flipud(parula),lon_cl,lat_cl)
+plotmap(lats,lon,aa,bb,cmap,'p_events.png',1,flipud(parula),lon_cl,lat_cl,dt_clust,citynm)
 
