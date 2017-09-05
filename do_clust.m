@@ -261,13 +261,37 @@ disp(datevec(squeeze(day_in(end,blon,blat))));
 %and its amplitude in mm
 disp(squeeze(max_in(end,blon,blat)));
 
-%Create yearly maximum distribution for each cluster (Cell array);
-for i=1:numel(cred)
-indist{i}=max_in(:,isgd(inclust{i}));
-end
+a=tdfread('cities15000.txt');
 
 clats=lats(uselats);
 clons=lon(uselons);
+
+%Create yearly maximum distribution for each cluster (Cell array);
+for i=1:numel(cred)
+indist{i}=max_in(:,isgd(inclust{i}));
+M=indist{i};
+[C,I] = max(M(:));
+[I1,I2] = ind2sub(size(M),I);
+M(I1,I2);
+
+dttmp=day_in(:,isgd(inclust{i}));
+dt_clust(i)=dttmp(I);
+
+[llo(i),lla(i)]=ind2sub(size(aa),isgd(inclust{i}(I2)));
+lly(i)=I1;
+lat_cl(i)=clats(lla(i));
+lon_cl(i)=clons(llo(i));
+
+dd=distance(lat_cl(i),lon_cl(i),a.lat,a.lon);
+ [duf ddmin]=min(dd);
+ citynm{i}=[strtrim(a.name1(ddmin,:)) ', ' strtrim(a.g(ddmin,:)), ...
+            ', ' strtrim(a.e(ddmin,:))];
+c_lvl_in(i)=C*0.0393701;
+c_lvl(i)=C;
+ [parmhat(i,:),parmci] = gevfit(M(:));
+ c_prctl(i) = gevcdf(c_lvl(i),parmhat(i,1),parmhat(i,2),parmhat(i,3));
+end
+
 %save output
 save('data_out.mat','max_in','day_in','cmap','clats','clons','isgd','inclust','c_new','cred','numelc','lats','lon','aa','bb')
 
