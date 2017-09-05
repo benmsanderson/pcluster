@@ -297,7 +297,7 @@ c_lvl(i)=C;
  [parmhat(i,:),parmci] = gevfit(M(:));
  c_prctl(i) = gevcdf(c_lvl(i),parmhat(i,1),parmhat(i,2),parmhat(i,3));
 end
-plotmap_city(lats,lon,aa,bb,cmap,'pmaps.png',1,flipud(parula),lon_cl,lat_cl)
+plotmap(lats,lon,aa,bb,cmap,'pmaps.png',1,flipud(parula),lon_cl,lat_cl)
 
 %save output
 save('data_out.mat','max_in','day_in','cmap','clats','clons','isgd','inclust','c_new','cred','numelc','lats','lon','aa','bb')
