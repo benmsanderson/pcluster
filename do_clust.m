@@ -178,8 +178,13 @@ uselats=[minlat:maxlat];
 uselons=[minlon:maxlon];
 %aa and bb are the indices of points in the US domain
 [aa bb]=ndgrid(uselons,uselats);
+
+load conus
+usmask=NaN(size(aa));
+usmask(find(inpolygon(lats(bb(:)),lon(aa(:)),uslat,uslon)))=1;
+
 %make vector (isgd) of all non-nan points in the US domain
- isgd=find(~isnan(pmat(uselons,uselats,1)));
+ isgd=find(~isnan(pmat(uselons,uselats,1)+usmask));
 
 clear tmp tmpd
 
@@ -224,7 +229,7 @@ gdmap=NaN(size(pmat(uselons,uselats,1)));
 gdmap(isgd)=1:numel(isgd);
 bgood=gdmap(blon,blat);
 dmap=reshape(log(1./tmpmap(isgd(bgood),:)),size(aa));
-plotmap(lats,lon,aa,bb,dmap,'ptest.png',2)
+plotmap(lats,lon,aa,bb,dmap,'ptest.png',2,flipud(parula))
 
 
 %%Create time evolving cluster distributions
@@ -267,37 +272,10 @@ disp(datevec(squeeze(day_in(end,blon,blat))));
 %and its amplitude in mm
 disp(squeeze(max_in(end,blon,blat)));
 
-a=tdfread('cities_NA.txt');
 
 clats=lats(uselats);
 clons=lon(uselons);
 
-%Create yearly maximum distribution for each cluster (Cell array);
-for i=1:numel(cred)
-indist{i}=max_in(:,isgd(inclust{i}));
-M=indist{i};
-[C,I] = max(M(:));
-[I1,I2] = ind2sub(size(M),I);
-M(I1,I2);
-
-dttmp=day_in(:,isgd(inclust{i}));
-dt_clust(i)=dttmp(I);
-
-[llo(i),lla(i)]=ind2sub(size(aa),isgd(inclust{i}(I2)));
-lly(i)=I1;
-lat_cl(i)=clats(lla(i));
-lon_cl(i)=clons(llo(i));
-
-dd=distance(lat_cl(i),lon_cl(i),a.lat,a.lon);
- [duf ddmin]=min(dd);
- citynm{i}=[strtrim(a.name1(ddmin,:)) ', ' strtrim(a.g(ddmin,:)), ...
-            ', ' strtrim(a.e(ddmin,:))];
-c_lvl_in(i)=C*0.0393701;
-c_lvl(i)=C;
- [parmhat(i,:),parmci] = gevfit(M(:));
- c_prctl(i) = gevcdf(c_lvl(i),parmhat(i,1),parmhat(i,2),parmhat(i,3));
-end
-plotmap(lats,lon,aa,bb,cmap,'pmaps.png',1,flipud(parula),lon_cl,lat_cl)
 
 %save output
 save('data_out.mat','max_in','day_in','cmap','clats','clons','isgd','inclust','c_new','cred','numelc','lats','lon','aa','bb')
