@@ -1,4 +1,4 @@
-function plotmap(lats,lon,aa,bb,cmap,filename,n,colmap)
+function plotmap(lats,lon,aa,bb,cmap,filename,n,colmap,lon_cl,lat_cl)
 
 figure(n)
 clf
@@ -16,9 +16,9 @@ geoshow(ax, states, 'DisplayType', 'polygon', ...
  load coast
 geoshow(flipud(lat),flipud(long),'DisplayType','polygon','FaceColor','white');
 colormap(colmap);
-
-
-
+if nargin>8
+plotm(lat_cl,lon_cl,'ko','markerfacecolor','w')
+end
 set(gcf, 'PaperPosition', [0 0 6 5]);
 set(gcf, 'PaperSize', [6 5]);
 

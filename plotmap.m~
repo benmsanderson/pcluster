@@ -1,4 +1,5 @@
 function plotmap(lats,lon,aa,bb,cmap,filename,n,colmap)
+
 figure(n)
 clf
 ax = usamap('conus');

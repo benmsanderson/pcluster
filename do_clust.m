@@ -211,6 +211,12 @@ minsize=40;
 %plot clusters
 plotmap(lats,lon,aa,bb,cmap,'pmaps.png',1,flipud(parula))
 
+tmpmap=NaN(size(aa(:),1),size(aa(:),1));
+for i=1:numel(isgd)
+tmpmap(isgd(i),isgd)=tmp(i,:)+tmpd(i,:)/D1;
+end
+
+
 %plot demonstration distance map
 %%find Boulder's coordinates in grid
 [blon,blat]=findcoords(40.01,-105.3,lats(bb),lon(aa));
@@ -261,7 +267,7 @@ disp(datevec(squeeze(day_in(end,blon,blat))));
 %and its amplitude in mm
 disp(squeeze(max_in(end,blon,blat)));
 
-a=tdfread('cities15000.txt');
+a=tdfread('cities_NA.txt');
 
 clats=lats(uselats);
 clons=lon(uselons);
@@ -291,6 +297,7 @@ c_lvl(i)=C;
  [parmhat(i,:),parmci] = gevfit(M(:));
  c_prctl(i) = gevcdf(c_lvl(i),parmhat(i,1),parmhat(i,2),parmhat(i,3));
 end
+plotmap_city(lats,lon,aa,bb,cmap,'pmaps.png',1,flipud(parula),lon_cl,lat_cl)
 
 %save output
 save('data_out.mat','max_in','day_in','cmap','clats','clons','isgd','inclust','c_new','cred','numelc','lats','lon','aa','bb')
