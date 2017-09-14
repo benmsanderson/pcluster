@@ -1,0 +1,15 @@
+datadir='/project/cmip5/ETH/cmip5/historical/day/pr'
+load('data_out.mat')
+mdls=dir([datadir '/*']);
+
+
+
+for i=3:numel(mdls)
+  runs=dir([datadir '/' mdls(i).name]);
+  for j=3:3
+    files=dir([datadir '/' mdls(i).name '/' runs(j).name]);
+    for k=3:numel(files)
+      fn=[datadir '/' mdls(i).name '/' runs(j).name '/' files(k).name];
+      prtmp=ncread(fn,'pr');
+      
+     
