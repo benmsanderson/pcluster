@@ -12,12 +12,13 @@ longrid=lon(aa);
 latgrid=lats(bb);
 
 
-for i=3:3%numel(mdls)
+for i=16:numel(mdls)
+disp(mdls(i).name);
   runs=dir([datadir '/' mdls(i).name]);
   for j=1:numel(scen)
 datadir_fut=['/project/cmip5/ETH/cmip5/' scen{j} '/day/pr'];
 t_datadir_fut=['/project/cmip5/ETH/cmip5/' scen{j} '/Amon/tas'];
-
+try
     files=dir([datadir '/' mdls(i).name '/' runs(3).name]);
 prcon=[];
 tcon=[];
@@ -31,18 +32,29 @@ tcon=[];
       tunits=ncreadatt(fn,'time','units');
       tcal=ncreadatt(fn,'time','calendar');
       dates=convert_time(ttmp,tunits,tcal);
-       [loni,lati,timi] = ndgrid(mod(lontmp,360),lattmp,ttmp);
-       [lono,lato,timo] = ndgrid(mod(clons,360),clats,ttmp);
-       vq = interpn(loni,lati,timi,prtmp,lono,lato,timo,'linear');
+       [loni,lati] = ndgrid(mod(lontmp,360),lattmp);
+       [lono,lato] = ndgrid(mod(clons,360),clats);
+     clear vq
+       for ii=1:size(prtmp,3)
+       vq(:,:,ii) = interpn(loni,lati,prtmp(:,:,ii),lono,lato,'linear');
+     end
+     
       prcon=cat(3,prcon,vq);
       tcon=cat(1,tcon,dates);
     end
+    pstname=runs(3).name;
+catch
+disp('error reading historical')
+prcon=[];
+tcon=[];
+pstname='';
+end
 
     %%now look for matching future runs
   runs_fut=dir([datadir_fut '/' mdls(i).name]);
-  
-    files2=dir([datadir_fut '/' mdls(i).name '/' runs_fut(3).name]);
    try
+    files2=dir([datadir_fut '/' mdls(i).name '/' runs_fut(3).name]);
+  
     for k=3:numel(files2)
       fn=[datadir_fut '/' mdls(i).name '/' runs_fut(3).name '/' files2(k).name];
       prtmp=ncread(fn,'pr');
@@ -53,25 +65,37 @@ tcon=[];
       tunits=ncreadatt(fn,'time','units');
       tcal=ncreadatt(fn,'time','calendar');
       dates=convert_time(ttmp,tunits,tcal);
-       [loni,lati,timi] = ndgrid(mod(lontmp,360),lattmp,ttmp);
-       [lono,lato,timo] = ndgrid(mod(clons,360),clats,ttmp);
-       vq = interpn(loni,lati,timi,prtmp,lono,lato,timo,'linear');
+       [loni,lati] = ndgrid(mod(lontmp,360),lattmp);
+       [lono,lato] = ndgrid(mod(clons,360),clats);
+clear vq
+       for ii=1:size(prtmp,3)
+	 
+       vq(:,:,ii) = interpn(loni,lati,prtmp(:,:,ii),lono,lato,'linear');
+       end
       prcon=cat(3,prcon,vq);
       tcon=cat(1,tcon,dates);
     end	
+  rfname=runs_fut(3).name;
     catch
     disp('error getting future precip')
-  end
+rfname='';
+end
+  p3daysum=cumsum(prcon,3);
+  mm3day=cat(3,p3daysum(:,:,4:end)-p3daysum(:,:,1:end-3),NaN([size(p3daysum,1),size(p3daysum,2),3]));
   
   %save extreme values
       datevc=datevec(tcon);
       cyrs=unique(datevc(:,1));
+prmax=[];
       for k=1:numel(cyrs)
 	usedates=find(datevc(:,1)==cyrs(k));
-	prmx(:,:,k)=max(prcon(:,:,usedates),[],3);
+	prmx(:,:,k)=max(mm3day(:,:,usedates),[],3);
       end
       ens(i-2).(scen{j}).prmx.val=prmx;
       ens(i-2).(scen{j}).prmx.year=cyrs;
+      ens(i-2).(scen{j}).runs=pstname;
+      ens(i-2).(scen{j}).runs_fut=rfname;
+	    
       ens(i-2).name=mdls(i).name;
     
 try
@@ -99,6 +123,9 @@ try
     end
 catch
 disp('error getting past temperture')
+prcon=[];
+tcon=[];
+tsmn=[];
 end
 
 try    
@@ -122,9 +149,6 @@ try
       tcon=cat(1,tcon,dates);
     end
 
-    catch
-    disp('error getting future temperature')
-  end
   
   
  %save temperature values
@@ -137,16 +161,14 @@ clear tasmn
       end
       ens(i-2).(scen{j}).tas.val=tasmn';
       ens(i-2).(scen{j}).tas.year=cyrs;
-    
+
+    catch
+    disp('error getting future temperature');
+  end    
     
     
     
     end
-end
-
-
-
-    
-    
-	    
-     
+  end
+  
+  save('/project/cmip5/ETH/ens_pr.mat','ens')
